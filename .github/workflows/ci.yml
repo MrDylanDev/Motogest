@@ -70,6 +70,14 @@ jobs:
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test-secret
 
+      - name: Run E2E Tests
+        run: pnpm --filter @taller-saas/api test:e2e
+        env:
+          DATABASE_URL: postgresql://taller_app:taller_app_dev@localhost:5432/taller_saas_test?schema=public
+          DATABASE_URL_TEST: postgresql://taller_app:taller_app_dev@localhost:5432/taller_saas_test?schema=public
+          DATABASE_URL_TEST_SEED: postgresql://taller:taller_dev@localhost:5432/taller_saas_test?schema=public
+          JWT_SECRET: test-secret
+
       - name: Test Web
         run: pnpm --filter @taller-saas/web test
 
