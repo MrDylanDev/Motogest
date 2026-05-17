@@ -10,3 +10,5 @@ coverage/
 
 # Local planning artifacts (not part of the product)
 openspec/
+.atl/
+.gga
