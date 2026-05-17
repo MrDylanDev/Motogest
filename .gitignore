@@ -7,3 +7,6 @@ dist/
 !.env.example
 coverage/
 .nyc_output/
+
+# Local planning artifacts (not part of the product)
+openspec/
