@@ -1,8 +1,12 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-async function main() {
+const DEMO_PASSWORD = 'Demo123456!';
+const BCRYPT_COST = 12;
+
+async function main(): Promise<void> {
   console.log('🌱 Seeding database...');
 
   // Create a demo tenant for development
@@ -22,13 +26,17 @@ async function main() {
 
   console.log(`✅ Tenant created: ${tenant.name} (${tenant.id})`);
 
-  // Create demo admin user (password: Demo123456!)
+  // Hash the demo password with the same cost factor used by AuthService.
+  // Real users created via signup go through bcrypt; the seed must match
+  // so that login works against the demo account.
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, BCRYPT_COST);
+
   const user = await prisma.user.upsert({
     where: { email: 'admin@demo-taller.com' },
-    update: {},
+    update: { passwordHash },
     create: {
       email: 'admin@demo-taller.com',
-      passwordHash: '$2b$12$LJ3m4sMKfRzG8J3xK5v5XOqZqKzYp5v5XOqZqKzYp5v5XOqZqKzY', // placeholder
+      passwordHash,
       fullName: 'Admin Demo',
       phone: '+5491155551234',
       status: 'active',
@@ -47,6 +55,7 @@ async function main() {
   });
 
   console.log(`✅ User created: ${user.email} (role: admin_taller)`);
+  console.log(`   Demo password: ${DEMO_PASSWORD}`);
 
   // Create subscription
   await prisma.subscription.upsert({
@@ -65,7 +74,7 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch((e: unknown) => {
     console.error('❌ Seed failed:', e);
     process.exit(1);
   })
