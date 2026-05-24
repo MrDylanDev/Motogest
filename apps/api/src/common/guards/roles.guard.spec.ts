@@ -27,14 +27,18 @@ describe('RolesGuard', () => {
   }
 
   it('throws ForbiddenException when user role does not match @Roles', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin_taller']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['admin_taller']);
     const ctx = createMockContext('cliente');
 
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 
   it('passes when user role matches @Roles', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin_taller']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['admin_taller']);
     const ctx = createMockContext('admin_taller');
 
     expect(guard.canActivate(ctx)).toBe(true);

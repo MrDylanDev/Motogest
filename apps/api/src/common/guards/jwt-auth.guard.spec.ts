@@ -27,8 +27,8 @@ describe('JwtAuthGuard', () => {
       getType: () => 'http',
       getArgs: () => [],
       getArgByIndex: () => undefined,
-      switchToRpc: () => ({} as any),
-      switchToWs: () => ({} as any),
+      switchToRpc: () => ({}) as any,
+      switchToWs: () => ({}) as any,
     } as unknown as ExecutionContext;
   }
 
@@ -42,9 +42,7 @@ describe('JwtAuthGuard', () => {
       .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')
       .mockRejectedValue(new UnauthorizedException());
 
-    await expect(guard.canActivate(ctx)).rejects.toThrow(
-      UnauthorizedException,
-    );
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
   it('passes when @Public decorator is present', async () => {
