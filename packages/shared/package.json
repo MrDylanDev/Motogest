@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "eslint src/",
+    "lint": "tsc --noEmit",
     "test": "echo \"No tests yet\""
   },
   "devDependencies": {
