@@ -61,9 +61,7 @@ export class AuthService {
       });
 
       // Phase 2: tenant-scoped tables — SET LOCAL for RLS
-      await tx.$executeRawUnsafe(
-        `SET LOCAL app.tenant_id = '${tenant.id}'`,
-      );
+      await tx.$executeRawUnsafe(`SET LOCAL app.tenant_id = '${tenant.id}'`);
 
       await tx.userTenant.create({
         data: { userId: user.id, tenantId: tenant.id, role: 'admin_taller' },
@@ -103,7 +101,10 @@ export class AuthService {
     }
 
     const membership = user.tenants[0];
-    if (!user.emailVerified || membership.tenant.status === 'pending_verification') {
+    if (
+      !user.emailVerified ||
+      membership.tenant.status === 'pending_verification'
+    ) {
       throw new ForbiddenException('EMAIL_NOT_VERIFIED');
     }
 

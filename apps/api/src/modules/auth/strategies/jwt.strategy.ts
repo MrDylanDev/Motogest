@@ -11,13 +11,24 @@ export interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET environment variable is required but was not set',
+      );
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET || 'dev-secret',
+      secretOrKey: secret,
     });
   }
 
-  validate(payload: JwtPayload): { id: string; tenantId: string; role: string } {
+  validate(payload: JwtPayload): {
+    id: string;
+    tenantId: string;
+    role: string;
+  } {
     return { id: payload.sub, tenantId: payload.tenantId, role: payload.role };
   }
 }
