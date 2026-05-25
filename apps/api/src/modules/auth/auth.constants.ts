@@ -1,0 +1,3 @@
+export const JWT_EXPIRES_IN = '15m';
+export const REFRESH_EXPIRES_IN_DAYS = 7;
+export const EMAIL_VERIFICATION_EXPIRES_HOURS = 24;
