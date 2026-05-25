@@ -9,9 +9,14 @@ import {
   seedTenant,
   seedAuditLog,
   truncateTenantTables,
-  mockAuthenticatedUser,
-  withMockUser,
 } from './helpers/tenant-seed.helper';
+import { signTestJwt, authHeader } from './helpers/jwt.helper';
+
+const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
+
+function tenantToken(tenantId: string, userId: string = TEST_USER_ID): string {
+  return signTestJwt({ sub: userId, tenantId, role: 'admin_taller' });
+}
 
 describe('Multi-Tenant Isolation (e2e)', () => {
   let app: INestApplication;
@@ -44,28 +49,23 @@ describe('Multi-Tenant Isolation (e2e)', () => {
     await app.close();
   });
 
-  // Spec: "Request without req.user.tenantId is rejected" → 401
-  it('blocks request with no req.user → 401', async () => {
+  // Spec: "Request without Authorization header is rejected by JwtAuthGuard" → 401
+  it('blocks request with no Authorization header → 401', async () => {
     await request(app.getHttpServer()).get('/audit-logs').expect(401);
   });
 
-  // Spec: "Malformed tenantId (not UUID) is rejected" → 401
-  it('blocks request with invalid tenantId UUID → 401', async () => {
-    // Create a separate app instance with bad user middleware
-    const moduleFixture = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-    const badApp = moduleFixture.createNestApplication();
-    const badUser = {
-      id: '00000000-0000-0000-0000-000000000001',
+  // Spec: "Malformed tenantId (not UUID) inside a valid JWT is rejected by interceptor" → 401
+  it('blocks request with invalid tenantId UUID inside JWT → 401', async () => {
+    const badToken = signTestJwt({
+      sub: TEST_USER_ID,
       tenantId: 'not-a-uuid',
-    };
-    withMockUser(badUser)(badApp);
-    await badApp.init();
+      role: 'admin_taller',
+    });
 
-    await request(badApp.getHttpServer()).get('/audit-logs').expect(401);
-
-    await badApp.close();
+    await request(app.getHttpServer())
+      .get('/audit-logs')
+      .set(authHeader(badToken))
+      .expect(401);
   });
 
   // Spec: "findMany filters by tenantId" — Tenant A only sees own audit logs
@@ -80,62 +80,46 @@ describe('Multi-Tenant Isolation (e2e)', () => {
       slug: 'b',
       subdomain: 'b',
     });
-    const userId = '00000000-0000-0000-0000-000000000001';
 
     await seedAuditLog(seedPrisma, {
       tenantId: tenantA.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'a1',
     });
     await seedAuditLog(seedPrisma, {
       tenantId: tenantA.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'a2',
     });
     await seedAuditLog(seedPrisma, {
       tenantId: tenantB.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'b1',
     });
     await seedAuditLog(seedPrisma, {
       tenantId: tenantB.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'b2',
     });
     await seedAuditLog(seedPrisma, {
       tenantId: tenantB.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'b3',
     });
 
     // As Tenant A → 2 logs
-    const moduleA = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-    const appA = moduleA.createNestApplication();
-    withMockUser(mockAuthenticatedUser(tenantA.id, userId))(appA);
-    await appA.init();
-
-    const resA = await request(appA.getHttpServer())
+    const resA = await request(app.getHttpServer())
       .get('/audit-logs')
+      .set(authHeader(tenantToken(tenantA.id)))
       .expect(200);
     expect(resA.body).toHaveLength(2);
 
     // As Tenant B → 3 logs
-    const moduleB = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-    const appB = moduleB.createNestApplication();
-    withMockUser(mockAuthenticatedUser(tenantB.id, userId))(appB);
-    await appB.init();
-
-    const resB = await request(appB.getHttpServer())
+    const resB = await request(app.getHttpServer())
       .get('/audit-logs')
+      .set(authHeader(tenantToken(tenantB.id)))
       .expect(200);
     expect(resB.body).toHaveLength(3);
-
-    await appA.close();
-    await appB.close();
   });
 
   // Spec: "Tenant A cannot read Tenant B's resources" → 404 (NOT 403)
@@ -150,26 +134,17 @@ describe('Multi-Tenant Isolation (e2e)', () => {
       slug: 'b',
       subdomain: 'b',
     });
-    const userId = '00000000-0000-0000-0000-000000000001';
 
     const logB = await seedAuditLog(seedPrisma, {
       tenantId: tenantB.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'secret',
     });
 
-    const moduleA = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-    const appA = moduleA.createNestApplication();
-    withMockUser(mockAuthenticatedUser(tenantA.id, userId))(appA);
-    await appA.init();
-
-    await request(appA.getHttpServer())
+    await request(app.getHttpServer())
       .get(`/audit-logs/${logB.id}`)
+      .set(authHeader(tenantToken(tenantA.id)))
       .expect(404);
-
-    await appA.close();
   });
 
   // Spec: "RLS blocks access without app.tenant_id set" → 0 rows
@@ -179,10 +154,9 @@ describe('Multi-Tenant Isolation (e2e)', () => {
       slug: 'a',
       subdomain: 'a',
     });
-    const userId = '00000000-0000-0000-0000-000000000001';
     await seedAuditLog(seedPrisma, {
       tenantId: tenantA.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'test',
     });
 
@@ -203,46 +177,39 @@ describe('Multi-Tenant Isolation (e2e)', () => {
       slug: 'b',
       subdomain: 'b',
     });
-    const userId = '00000000-0000-0000-0000-000000000001';
 
     await seedAuditLog(seedPrisma, {
       tenantId: tenantA.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'a1',
     });
     await seedAuditLog(seedPrisma, {
       tenantId: tenantB.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'b1',
     });
     await seedAuditLog(seedPrisma, {
       tenantId: tenantB.id,
-      userId,
+      userId: TEST_USER_ID,
       action: 'b2',
     });
-
-    // Use the Nest app's PrismaService with TenantContext set to Tenant A
-    const moduleA = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-    const appInstance = moduleA.createNestApplication();
-    await appInstance.init();
 
     const { PrismaService } =
       await import('../src/common/prisma/prisma.service');
     const { TenantContext } =
       await import('../src/common/tenant/tenant-context.service');
-    const prismaService = moduleA.get(PrismaService);
-    const tenantContext = moduleA.get(TenantContext);
+    const prismaService = app.get(PrismaService);
+    const tenantContext = app.get(TenantContext);
 
-    const rows = await tenantContext.run({ tenantId: tenantA.id, userId }, () =>
-      prismaService.withRlsTransaction(
-        async (tx) => tx.$queryRaw<{ id: string }[]>`SELECT id FROM audit_logs`,
-      ),
+    const rows = await tenantContext.run(
+      { tenantId: tenantA.id, userId: TEST_USER_ID },
+      () =>
+        prismaService.withRlsTransaction(
+          async (tx) =>
+            tx.$queryRaw<{ id: string }[]>`SELECT id FROM audit_logs`,
+        ),
     );
 
     expect(rows).toHaveLength(1);
-
-    await appInstance.close();
   });
 });
