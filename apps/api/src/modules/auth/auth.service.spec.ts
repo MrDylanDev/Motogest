@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
+import { RefreshTokenService } from './refresh-token.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -20,6 +21,11 @@ describe('AuthService', () => {
 
   const mockJwt = { signAsync: jest.fn().mockResolvedValue('access-token') };
   const mockEmail = { sendVerificationEmail: jest.fn() };
+  const mockRefreshToken = {
+    create: jest
+      .fn()
+      .mockResolvedValue({ refreshToken: 'refresh-tok', familyId: 'fam-1' }),
+  };
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
@@ -27,6 +33,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
+        { provide: RefreshTokenService, useValue: mockRefreshToken },
         { provide: 'EMAIL_SERVICE', useValue: mockEmail },
       ],
     }).compile();
@@ -121,6 +128,7 @@ describe('AuthService', () => {
       const result = await service.login(dto);
 
       expect(result.accessToken).toBe('access-token');
+      expect(result.refreshToken).toBe('refresh-tok');
       expect(mockJwt.signAsync).toHaveBeenCalledWith({
         sub: 'user-1',
         tenantId: 'tenant-1',

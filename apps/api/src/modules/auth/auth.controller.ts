@@ -1,10 +1,31 @@
-import { Body, Controller, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
+import type { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import { EmailVerificationService } from './email-verification.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { UnauthorizedException } from '@nestjs/common';
+
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict' as const,
+  path: '/auth/refresh',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
 
 @Controller('auth')
 export class AuthController {
@@ -16,25 +37,44 @@ export class AuthController {
 
   @Public()
   @Post('signup')
-  signup(@Body() dto: SignupDto) {
+  signup(@Body() dto: SignupDto): Promise<{ message: string }> {
     return this.auth.signup(dto);
   }
 
   @Public()
+  @HttpCode(HttpStatus.OK)
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ accessToken: string }> {
+    const { accessToken, refreshToken } = await this.auth.login(dto);
+    res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
+    return { accessToken };
   }
 
   @Public()
-  @Post('verify-email')
-  verifyEmail(@Query('token') token: string) {
+  @SkipThrottle()
+  @Get('verify-email')
+  verifyEmail(@Query('token') token: string): Promise<void> {
     return this.emailVerification.verify(token);
   }
 
   @Public()
+  @SkipThrottle()
+  @HttpCode(HttpStatus.OK)
   @Post('refresh')
-  refresh(@Body('refreshToken') refreshToken: string) {
-    return this.refreshToken.rotate(refreshToken);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ accessToken: string }> {
+    const rawToken = req.cookies?.refreshToken;
+    if (!rawToken) {
+      throw new UnauthorizedException('MissingRefreshToken');
+    }
+    const { accessToken, refreshToken } =
+      await this.refreshToken.rotate(rawToken);
+    res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
+    return { accessToken };
   }
 }

@@ -50,6 +50,14 @@ These rules implement the three-layer defense documented in `docs/adr/0001-multi
 - Cross-tenant access attempts MUST return 404, never 403, to avoid leaking resource existence.
 - Global models (e.g. `User`) are not auto-filtered. Only models in the explicit `TENANT_SCOPED_MODELS` list are filtered.
 
+### RLS auth-bootstrap exception
+
+The `auth_lookup` policy on `user_tenants` allows SELECT when `current_setting('app.tenant_id', true)` is NULL or empty. This is REQUIRED for the login flow: before tenant context is established, the auth service must look up the user's tenant association by `user_id` to build the JWT claims.
+
+- **Scope**: SELECT-only — no INSERT/UPDATE/DELETE bypass.
+- **Risk acceptance**: Queries that forget to set `app.tenant_id` will see all `user_tenants` rows. This is acceptable because (a) it's read-only, (b) the only queries that legitimately run without tenant context are auth lookups, and (c) RLS still blocks all other tenant-scoped tables when context is missing.
+- **Migration**: `apps/api/prisma/migrations/20260526035800_fix_rls_empty_tenant_id/migration.sql`.
+
 ## Prisma
 
 - Schema lives in `apps/api/prisma/schema.prisma`. Migrations live alongside.
@@ -62,6 +70,7 @@ These rules implement the three-layer defense documented in `docs/adr/0001-multi
 - New behavior ships with a failing test first (TDD). The test that fails before the implementation is the proof the implementation is needed.
 - Unit tests live next to source as `*.spec.ts` (API) or `*.test.{ts,tsx}` (Web).
 - E2E tests live in `apps/api/test/*.e2e-spec.ts` and run via `pnpm --filter @taller-saas/api test:e2e`.
+- E2E suites run with `maxWorkers: 1` (sequential). Rationale: suites TRUNCATE shared tables between tests; concurrent workers cause deadlocks and flaky failures. Sequential execution (~30s total) is acceptable.
 - Mock external boundaries (DB, HTTP) at the closest layer, not deep inside the system under test.
 - A test must fail meaningfully before passing. If a test is added green, it provides no protection — flag it.
 

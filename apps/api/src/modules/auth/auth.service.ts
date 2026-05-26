@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { RefreshTokenService } from './refresh-token.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import type { EmailService } from '../../common/email/email.interface';
@@ -19,6 +20,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly refreshToken: RefreshTokenService,
     @Inject('EMAIL_SERVICE') private readonly email: EmailService,
   ) {}
 
@@ -88,7 +90,9 @@ export class AuthService {
     return { message: 'verify_email_sent' };
   }
 
-  async login(dto: LoginDto): Promise<{ accessToken: string }> {
+  async login(
+    dto: LoginDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: { tenants: { include: { tenant: true } } },
@@ -106,7 +110,7 @@ export class AuthService {
     const membership = user.tenants[0];
     if (
       !user.emailVerified ||
-      membership.tenant.status === 'pending_verification'
+      membership?.tenant.status === 'pending_verification'
     ) {
       throw new ForbiddenException('EMAIL_NOT_VERIFIED');
     }
@@ -117,6 +121,8 @@ export class AuthService {
       role: membership.role,
     });
 
-    return { accessToken };
+    const { refreshToken } = await this.refreshToken.create(user.id);
+
+    return { accessToken, refreshToken };
   }
 }

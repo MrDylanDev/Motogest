@@ -165,6 +165,43 @@ describe('Multi-Tenant Isolation (e2e)', () => {
     expect(rows).toHaveLength(0);
   });
 
+  // Spec: "JWT.tenantId references non-existent tenant → 200 with empty array (RLS-isolated)"
+  it('JWT.tenantId references non-existent tenant → 200 with empty array (RLS-isolated)', async () => {
+    await seedTenant(seedPrisma, {
+      name: 'A',
+      slug: 'a',
+      subdomain: 'a',
+    });
+    await seedTenant(seedPrisma, {
+      name: 'B',
+      slug: 'b',
+      subdomain: 'b',
+    });
+
+    // JWT claims tenantId = tenantA, but we try to access audit-logs
+    // which uses TenantContextInterceptor to scope by JWT's tenantId.
+    // A token with a non-existent tenantId should get 401 from the interceptor.
+    const fakeToken = signTestJwt({
+      sub: TEST_USER_ID,
+      tenantId: '00000000-0000-0000-0000-000000000099',
+      role: 'admin_taller',
+    });
+
+    // The interceptor validates tenantId format (UUID) but doesn't verify
+    // the tenant exists — it just sets the context. The real isolation is
+    // that the user gets 0 results (not 401). But if we forge a token with
+    // tenantId X and try to access resources that belong to tenantId Y,
+    // the RLS ensures we see nothing from Y.
+    // For this test: token has fake tenantId → request succeeds (200) but
+    // returns empty array (no audit logs for that tenant).
+    const res = await request(app.getHttpServer())
+      .get('/audit-logs')
+      .set(authHeader(fakeToken))
+      .expect(200);
+
+    expect(res.body).toHaveLength(0);
+  });
+
   // Spec: "RLS allows raw query inside withRlsTransaction → only own tenant rows"
   it('RLS allows raw query as taller_app inside withRlsTransaction → only own tenant rows', async () => {
     const tenantA = await seedTenant(seedPrisma, {
