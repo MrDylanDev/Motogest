@@ -13,7 +13,9 @@ export class RefreshTokenService {
     private readonly jwt: JwtService,
   ) {}
 
-  async create(userId: string): Promise<{ refreshToken: string; familyId: string }> {
+  async create(
+    userId: string,
+  ): Promise<{ refreshToken: string; familyId: string }> {
     const raw = randomUUID();
     const familyId = randomUUID();
     await this.prisma.refreshToken.create({
@@ -27,7 +29,9 @@ export class RefreshTokenService {
     return { refreshToken: raw, familyId };
   }
 
-  async rotate(rawToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+  async rotate(
+    rawToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const tokenHash = this.hash(rawToken);
     const stored = await this.prisma.refreshToken.findFirst({
       where: { tokenHash },

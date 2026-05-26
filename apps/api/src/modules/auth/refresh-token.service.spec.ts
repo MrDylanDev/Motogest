@@ -18,7 +18,9 @@ describe('RefreshTokenService', () => {
     },
   };
 
-  const mockJwt = { signAsync: jest.fn().mockResolvedValue('new-access-token') };
+  const mockJwt = {
+    signAsync: jest.fn().mockResolvedValue('new-access-token'),
+  };
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
