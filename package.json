@@ -1,6 +1,12 @@
 {
   "name": "taller-saas",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Dylan Ospina, Emmanuel Rios",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DylanOsdev/Plataforma-SaaS.git"
+  },
   "packageManager": "pnpm@11.0.9",
   "scripts": {
     "dev": "turbo dev",
