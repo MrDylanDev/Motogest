@@ -1,4 +1,7 @@
+import axios from 'axios'
+
 import type {
+  AuthUser,
   LoginCredentials,
   LoginResponse,
   MessageResponse,
@@ -6,21 +9,55 @@ import type {
 } from '../slices/authSlice'
 
 /**
- * Stub. Real axios-backed implementation arrives with task 4.4 once the RED
- * test in authApi.test.ts (task 4.3) drives the contract. Keeping this stub
- * lets the slice and consumers compile while we work top-down.
+ * Base URL for the API. Resolved from VITE_API_URL at build time, with a
+ * sensible local-dev fallback so tests and `pnpm dev` work without extra
+ * configuration.
+ *
+ * The shared axios instance + interceptors (Bearer header, refresh-on-401
+ * retry) arrive with task 4.5/4.6. Until then, authApi sets the auth header
+ * inline on the /auth/me call after login.
  */
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+
 export const authApi = {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  /**
+   * Logs the user in by composing /auth/login + /auth/me:
+   *  1. POST /auth/login with credentials (sends/receives the httpOnly
+   *     refresh-token cookie via withCredentials).
+   *  2. GET /auth/me using the freshly-issued accessToken to fetch the
+   *     authenticated user identity.
+   *
+   * Errors from either request bubble up as axios errors so the slice's
+   * extractErrorMessage helper can surface server-provided messages.
+   */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    throw new Error('authApi.login not implemented yet (task 4.4)')
+    const { data: tokenResponse } = await axios.post<{ accessToken: string }>(
+      `${API_URL}/auth/login`,
+      credentials,
+      { withCredentials: true },
+    )
+
+    const { data: user } = await axios.get<AuthUser>(`${API_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${tokenResponse.accessToken}` },
+    })
+
+    return { accessToken: tokenResponse.accessToken, user }
   },
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   async signup(payload: SignupPayload): Promise<MessageResponse> {
-    throw new Error('authApi.signup not implemented yet (task 4.4)')
+    const { data } = await axios.post<MessageResponse>(
+      `${API_URL}/auth/signup`,
+      payload,
+    )
+    return data
   },
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+  /**
+   * Backend returns 200 with no body on success; we synthesize a stable
+   * message so the slice and UI can branch on a known string.
+   */
   async verifyEmail(token: string): Promise<MessageResponse> {
-    throw new Error('authApi.verifyEmail not implemented yet (task 4.4)')
+    await axios.get(`${API_URL}/auth/verify-email`, { params: { token } })
+    return { message: 'email_verified' }
   },
 }
