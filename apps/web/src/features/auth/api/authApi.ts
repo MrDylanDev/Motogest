@@ -1,4 +1,4 @@
-import axios from 'axios'
+import { httpClient } from '../../../lib/http/axios'
 
 import type {
   AuthUser,
@@ -9,35 +9,36 @@ import type {
 } from '../slices/authSlice'
 
 /**
- * Base URL for the API. Resolved from VITE_API_URL at build time, with a
- * sensible local-dev fallback so tests and `pnpm dev` work without extra
- * configuration.
+ * Auth feature API. All calls go through the shared {@link httpClient}, which
+ * is responsible for:
+ *   - injecting `Authorization: Bearer <token>` from the Redux store
+ *   - rotating the access token on 401 via /auth/refresh and retrying
+ *   - dispatching logout when refresh fails
  *
- * The shared axios instance + interceptors (Bearer header, refresh-on-401
- * retry) arrive with task 4.5/4.6. Until then, authApi sets the auth header
- * inline on the /auth/me call after login.
+ * authApi only knows about *what* to call and *how to compose* the auth flow.
+ * It never reads the store directly and never sets headers manually except
+ * for the post-login /auth/me composition (the store hasn't caught up yet
+ * with the freshly issued token; the request interceptor respects the
+ * explicit override).
  */
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
-
 export const authApi = {
   /**
    * Logs the user in by composing /auth/login + /auth/me:
-   *  1. POST /auth/login with credentials (sends/receives the httpOnly
-   *     refresh-token cookie via withCredentials).
-   *  2. GET /auth/me using the freshly-issued accessToken to fetch the
-   *     authenticated user identity.
+   *  1. POST /auth/login with credentials. Backend issues an access token in
+   *     the JSON body and the refresh cookie via Set-Cookie (httpOnly).
+   *  2. GET /auth/me using the freshly-issued accessToken. The interceptor
+   *     respects the explicit Authorization header, so no race with the store.
    *
    * Errors from either request bubble up as axios errors so the slice's
    * extractErrorMessage helper can surface server-provided messages.
    */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    const { data: tokenResponse } = await axios.post<{ accessToken: string }>(
-      `${API_URL}/auth/login`,
+    const { data: tokenResponse } = await httpClient.post<{ accessToken: string }>(
+      '/auth/login',
       credentials,
-      { withCredentials: true },
     )
 
-    const { data: user } = await axios.get<AuthUser>(`${API_URL}/auth/me`, {
+    const { data: user } = await httpClient.get<AuthUser>('/auth/me', {
       headers: { Authorization: `Bearer ${tokenResponse.accessToken}` },
     })
 
@@ -45,10 +46,7 @@ export const authApi = {
   },
 
   async signup(payload: SignupPayload): Promise<MessageResponse> {
-    const { data } = await axios.post<MessageResponse>(
-      `${API_URL}/auth/signup`,
-      payload,
-    )
+    const { data } = await httpClient.post<MessageResponse>('/auth/signup', payload)
     return data
   },
 
@@ -57,7 +55,7 @@ export const authApi = {
    * message so the slice and UI can branch on a known string.
    */
   async verifyEmail(token: string): Promise<MessageResponse> {
-    await axios.get(`${API_URL}/auth/verify-email`, { params: { token } })
+    await httpClient.get('/auth/verify-email', { params: { token } })
     return { message: 'email_verified' }
   },
 }

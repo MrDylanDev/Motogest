@@ -1,19 +1,24 @@
-import axios from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Auto-mock axios so we can drive every HTTP boundary from the test.
-vi.mock('axios')
+// Mock the shared httpClient module. authApi consumes it; tests drive
+// httpClient.post / httpClient.get directly.
+vi.mock('../../../lib/http/axios', () => ({
+  httpClient: {
+    post: vi.fn(),
+    get: vi.fn(),
+  },
+}))
 
 import { authApi } from './authApi'
+import { httpClient } from '../../../lib/http/axios'
 import type {
   AuthUser,
   LoginCredentials,
   SignupPayload,
 } from '../slices/authSlice'
 
-// Vitest's auto-mock turns axios.post / axios.get into vi.fn() instances.
-const mockedPost = axios.post as unknown as ReturnType<typeof vi.fn>
-const mockedGet = axios.get as unknown as ReturnType<typeof vi.fn>
+const mockedPost = httpClient.post as unknown as ReturnType<typeof vi.fn>
+const mockedGet = httpClient.get as unknown as ReturnType<typeof vi.fn>
 
 const sampleUser: AuthUser = {
   id: 'user-1',
@@ -44,7 +49,7 @@ beforeEach(() => {
 })
 
 describe('authApi.login', () => {
-  it('posts credentials to /auth/login then GETs /auth/me with the bearer token, returning combined payload', async () => {
+  it('posts credentials to /auth/login then GETs /auth/me with the freshly issued bearer, returning combined payload', async () => {
     mockedPost.mockResolvedValueOnce({ data: { accessToken: 'jwt-token' } })
     mockedGet.mockResolvedValueOnce({ data: sampleUser })
 
@@ -52,20 +57,17 @@ describe('authApi.login', () => {
 
     expect(result).toEqual({ accessToken: 'jwt-token', user: sampleUser })
 
+    // /auth/login uses the shared client (withCredentials is set at instance level).
     expect(mockedPost).toHaveBeenCalledTimes(1)
-    expect(mockedPost).toHaveBeenCalledWith(
-      expect.stringContaining('/auth/login'),
-      credentials,
-      expect.objectContaining({ withCredentials: true }),
-    )
+    expect(mockedPost).toHaveBeenCalledWith('/auth/login', credentials)
 
+    // /auth/me carries an explicit Authorization header — the request interceptor
+    // respects it (verified by axios.test.ts scenario "respects an explicit
+    // Authorization header set by the caller").
     expect(mockedGet).toHaveBeenCalledTimes(1)
-    expect(mockedGet).toHaveBeenCalledWith(
-      expect.stringContaining('/auth/me'),
-      expect.objectContaining({
-        headers: { Authorization: 'Bearer jwt-token' },
-      }),
-    )
+    expect(mockedGet).toHaveBeenCalledWith('/auth/me', {
+      headers: { Authorization: 'Bearer jwt-token' },
+    })
   })
 
   it('propagates the error and skips /auth/me when /auth/login rejects with 401', async () => {
@@ -107,10 +109,7 @@ describe('authApi.signup', () => {
 
     expect(result).toEqual({ message: 'verify_email_sent' })
     expect(mockedPost).toHaveBeenCalledTimes(1)
-    expect(mockedPost).toHaveBeenCalledWith(
-      expect.stringContaining('/auth/signup'),
-      payload,
-    )
+    expect(mockedPost).toHaveBeenCalledWith('/auth/signup', payload)
   })
 
   it('propagates 409 conflict so the slice can surface EMAIL_ALREADY_EXISTS', async () => {
@@ -134,10 +133,9 @@ describe('authApi.verifyEmail', () => {
 
     expect(result).toEqual({ message: 'email_verified' })
     expect(mockedGet).toHaveBeenCalledTimes(1)
-    expect(mockedGet).toHaveBeenCalledWith(
-      expect.stringContaining('/auth/verify-email'),
-      expect.objectContaining({ params: { token } }),
-    )
+    expect(mockedGet).toHaveBeenCalledWith('/auth/verify-email', {
+      params: { token },
+    })
   })
 
   it('propagates 410 expired-token error so the slice can map it to TOKEN_EXPIRED', async () => {
