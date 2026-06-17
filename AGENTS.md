@@ -58,6 +58,15 @@ The `auth_lookup` policy on `user_tenants` allows SELECT when `current_setting('
 - **Risk acceptance**: Queries that forget to set `app.tenant_id` will see all `user_tenants` rows. This is acceptable because (a) it's read-only, (b) the only queries that legitimately run without tenant context are auth lookups, and (c) RLS still blocks all other tenant-scoped tables when context is missing.
 - **Migration**: `apps/api/prisma/migrations/20260526035800_fix_rls_empty_tenant_id/migration.sql`.
 
+## Authentication
+
+- Access tokens are returned in the JSON response body; refresh tokens are set as `httpOnly` cookies. Never expose refresh tokens in response bodies.
+- The API is secure-by-default via a global `APP_GUARD` (JWT). Opt out individual routes with the `@Public()` decorator. Public routes: signup, login, verify-email, refresh.
+- `GET /auth/me` returns the authenticated user's identity. Use `@CurrentUser()` to inject the user into handler parameters.
+- `GET /auth/verify-email?token=<token>` verifies email ownership. The token is a URL query parameter, not a path segment.
+- Frontend uses `PublicRoute` and `PrivateRoute` route guards. Unauthenticated users are redirected to `/login`; authenticated users are redirected away from public-only pages.
+- The shared `httpClient` (Axios instance) includes a refresh+retry interceptor: on 401, it attempts a token refresh and replays the failed request once.
+
 ## Prisma
 
 - Schema lives in `apps/api/prisma/schema.prisma`. Migrations live alongside.
@@ -100,3 +109,8 @@ The `auth_lookup` policy on `user_tenants` allows SELECT when `current_setting('
 
 - Generated files (`dist/`, `coverage/`, Prisma client output, lockfiles).
 - Local planning artifacts under `openspec/` (gitignored).
+
+## Reviewer Output Contract
+
+- Emit the verdict token in English exactly: `STATUS: PASSED` or `STATUS: FAILED`.
+- Never translate, reword, or localize the verdict token. The literal English string is required by the tooling.

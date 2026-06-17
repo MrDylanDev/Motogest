@@ -1,73 +1,59 @@
-# React + TypeScript + Vite
+# @taller-saas/web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 frontend for the Taller SaaS platform. Built with Vite, MUI, Tailwind, Redux Toolkit, react-hook-form, and zod.
 
-Currently, two official plugins are available:
+## Prerequisites
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 20+
+- pnpm 11+
+- The API (`@taller-saas/api`) running locally for full functionality
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+All commands run from the **monorepo root** (`Plataforma-SaaS/`).
 
-## Expanding the ESLint configuration
+```bash
+# 1. Install dependencies
+pnpm install
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# 2. Create your env file (if the app uses one)
+# The web app reads VITE_API_URL from environment.
+# Default: http://localhost:3000
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 3. Build the shared package (required dependency)
+pnpm --filter @taller-saas/shared build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm --filter @taller-saas/web dev
 ```
+
+The app starts on `http://localhost:5173` by default (Vite dev server).
+
+## Testing
+
+```bash
+# Run tests
+pnpm --filter @taller-saas/web test
+
+# Watch mode
+pnpm --filter @taller-saas/web test:watch
+```
+
+## Linting
+
+```bash
+pnpm --filter @taller-saas/web lint
+```
+
+## Full local CI
+
+For a complete CI replica that mirrors the GitHub Actions pipeline:
+
+```bash
+pnpm ci:local
+```
+
+See [docs/local-ci.md](../../docs/local-ci.md) for details on what runs and troubleshooting.
