@@ -2,12 +2,10 @@
 CREATE TABLE "clients" (
     "id" UUID NOT NULL,
     "tenant_id" UUID NOT NULL,
-    "first_name" VARCHAR(100) NOT NULL,
-    "last_name" VARCHAR(100) NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
     "email" VARCHAR(255),
-    "phone" VARCHAR(20),
+    "phone" VARCHAR(50),
     "address" TEXT,
-    "notes" TEXT,
     "status" VARCHAR(20) NOT NULL DEFAULT 'active',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -20,7 +18,7 @@ CREATE TABLE "vehicles" (
     "id" UUID NOT NULL,
     "tenant_id" UUID NOT NULL,
     "client_id" UUID NOT NULL,
-    "brand" VARCHAR(100) NOT NULL,
+    "make" VARCHAR(100) NOT NULL,
     "model" VARCHAR(100) NOT NULL,
     "year" INTEGER,
     "plate" VARCHAR(20) NOT NULL,
@@ -40,11 +38,10 @@ CREATE TABLE "vehicles" (
 CREATE TABLE "mechanics" (
     "id" UUID NOT NULL,
     "tenant_id" UUID NOT NULL,
-    "first_name" VARCHAR(100) NOT NULL,
-    "last_name" VARCHAR(100) NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
     "email" VARCHAR(255),
     "phone" VARCHAR(20),
-    "specialties" VARCHAR(100)[],
+    "specializations" VARCHAR(100)[],
     "hire_date" TIMESTAMP(3),
     "notes" TEXT,
     "status" VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -59,15 +56,15 @@ CREATE TABLE "spare_parts" (
     "id" UUID NOT NULL,
     "tenant_id" UUID NOT NULL,
     "code" VARCHAR(50) NOT NULL,
-    "name" VARCHAR(200) NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
     "description" TEXT,
     "category" VARCHAR(100),
     "unit" VARCHAR(30) NOT NULL DEFAULT 'unit',
     "current_stock" INTEGER NOT NULL DEFAULT 0,
     "min_stock" INTEGER NOT NULL DEFAULT 0,
     "max_stock" INTEGER NOT NULL DEFAULT 0,
-    "cost_price" DECIMAL(10,2),
-    "sale_price" DECIMAL(10,2),
+    "unit_cost" DECIMAL(10,2),
+    "selling_price" DECIMAL(10,2),
     "supplier" VARCHAR(200),
     "notes" TEXT,
     "status" VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -78,7 +75,7 @@ CREATE TABLE "spare_parts" (
 );
 
 -- CreateIndex
-CREATE INDEX "clients_tenant_id_last_name_first_name_idx" ON "clients"("tenant_id", "last_name", "first_name");
+CREATE INDEX "clients_tenant_id_name_idx" ON "clients"("tenant_id", "name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "clients_tenant_id_email_key" ON "clients"("tenant_id", "email");
@@ -87,7 +84,7 @@ CREATE UNIQUE INDEX "clients_tenant_id_email_key" ON "clients"("tenant_id", "ema
 CREATE UNIQUE INDEX "clients_tenant_id_phone_key" ON "clients"("tenant_id", "phone");
 
 -- CreateIndex
-CREATE INDEX "vehicles_tenant_id_brand_model_idx" ON "vehicles"("tenant_id", "brand", "model");
+CREATE INDEX "vehicles_tenant_id_make_model_idx" ON "vehicles"("tenant_id", "make", "model");
 
 -- CreateIndex
 CREATE INDEX "vehicles_client_id_idx" ON "vehicles"("client_id");
@@ -99,7 +96,7 @@ CREATE UNIQUE INDEX "vehicles_tenant_id_plate_key" ON "vehicles"("tenant_id", "p
 CREATE UNIQUE INDEX "vehicles_tenant_id_vin_key" ON "vehicles"("tenant_id", "vin");
 
 -- CreateIndex
-CREATE INDEX "mechanics_tenant_id_last_name_first_name_idx" ON "mechanics"("tenant_id", "last_name", "first_name");
+CREATE INDEX "mechanics_tenant_id_name_idx" ON "mechanics"("tenant_id", "name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "mechanics_tenant_id_email_key" ON "mechanics"("tenant_id", "email");

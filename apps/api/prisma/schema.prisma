@@ -145,12 +145,10 @@ model AuditLog {
 model Client {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
-  firstName String   @map("first_name") @db.VarChar(100)
-  lastName  String   @map("last_name") @db.VarChar(100)
+  name      String   @db.VarChar(255)
   email     String?  @db.VarChar(255)
-  phone     String?  @db.VarChar(20)
+  phone     String?  @db.VarChar(50)
   address   String?  @db.Text
-  notes     String?  @db.Text
   status    String   @default("active") @db.VarChar(20)
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -160,7 +158,7 @@ model Client {
 
   @@unique([tenantId, email])
   @@unique([tenantId, phone])
-  @@index([tenantId, lastName, firstName])
+  @@index([tenantId, name])
   @@map("clients")
 }
 
@@ -168,7 +166,7 @@ model Vehicle {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
   clientId  String   @map("client_id") @db.Uuid
-  brand     String   @db.VarChar(100)
+  make      String   @db.VarChar(100)
   model     String   @db.VarChar(100)
   year      Int?
   plate     String   @db.VarChar(20)
@@ -186,29 +184,28 @@ model Vehicle {
 
   @@unique([tenantId, plate])
   @@unique([tenantId, vin])
-  @@index([tenantId, brand, model])
+  @@index([tenantId, make, model])
   @@index([clientId])
   @@map("vehicles")
 }
 
 model Mechanic {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @map("tenant_id") @db.Uuid
-  firstName   String   @map("first_name") @db.VarChar(100)
-  lastName    String   @map("last_name") @db.VarChar(100)
-  email       String?  @db.VarChar(255)
-  phone       String?  @db.VarChar(20)
-  specialties String[] @db.VarChar(100)
-  hireDate    DateTime? @map("hire_date")
-  notes       String?  @db.Text
-  status      String   @default("active") @db.VarChar(20)
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  name            String   @db.VarChar(255)
+  email           String?  @db.VarChar(255)
+  phone           String?  @db.VarChar(20)
+  specializations String[] @db.VarChar(100)
+  hireDate        DateTime? @map("hire_date")
+  notes           String?  @db.Text
+  status          String   @default("active") @db.VarChar(20)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([tenantId, email])
   @@unique([tenantId, phone])
-  @@index([tenantId, lastName, firstName])
+  @@index([tenantId, name])
   @@map("mechanics")
 }
 
@@ -216,15 +213,15 @@ model SparePart {
   id           String   @id @default(uuid()) @db.Uuid
   tenantId     String   @map("tenant_id") @db.Uuid
   code         String   @db.VarChar(50)
-  name         String   @db.VarChar(200)
+  name         String   @db.VarChar(255)
   description  String?  @db.Text
   category     String?  @db.VarChar(100)
   unit         String   @default("unit") @db.VarChar(30)
   currentStock Int      @default(0) @map("current_stock")
   minStock     Int      @default(0) @map("min_stock")
   maxStock     Int      @default(0) @map("max_stock")
-  costPrice    Decimal? @map("cost_price") @db.Decimal(10, 2)
-  salePrice    Decimal? @map("sale_price") @db.Decimal(10, 2)
+  unitCost     Decimal? @map("unit_cost") @db.Decimal(10, 2)
+  sellingPrice Decimal? @map("selling_price") @db.Decimal(10, 2)
   supplier     String?  @db.VarChar(200)
   notes        String?  @db.Text
   status       String   @default("active") @db.VarChar(20)
