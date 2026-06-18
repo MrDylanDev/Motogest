@@ -1,9 +1,4 @@
-import {
-  IsUUID,
-  IsArray,
-  IsOptional,
-  ArrayMinSize,
-} from 'class-validator';
+import { IsUUID, IsArray, IsOptional, ArrayMinSize } from 'class-validator';
 
 export class AssignMechanicsDto {
   @IsArray()
