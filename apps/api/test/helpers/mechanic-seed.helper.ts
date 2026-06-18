@@ -4,20 +4,17 @@ import { randomUUID } from 'node:crypto';
 export interface SeedMechanicResult {
   id: string;
   tenantId: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string | null;
   phone: string | null;
-  specialties: string[];
 }
 
 export interface SeedMechanicOpts {
   tenantId: string;
-  firstName?: string;
-  lastName?: string;
+  name?: string;
   email?: string;
   phone?: string;
-  specialties?: string[];
+  specializations?: string[];
   hireDate?: Date;
   notes?: string;
   status?: string;
@@ -30,11 +27,10 @@ export async function seedMechanic(
   const mechanic = await prisma.mechanic.create({
     data: {
       tenantId: opts.tenantId,
-      firstName: opts.firstName ?? 'Test',
-      lastName: opts.lastName ?? `Mechanic-${randomUUID().slice(0, 6)}`,
+      name: opts.name ?? `Mechanic-${randomUUID().slice(0, 6)}`,
       email: opts.email ?? null,
       phone: opts.phone ?? null,
-      specialties: opts.specialties ?? [],
+      specializations: opts.specializations ?? [],
       hireDate: opts.hireDate ?? null,
       notes: opts.notes ?? null,
       status: opts.status ?? 'active',
@@ -44,11 +40,9 @@ export async function seedMechanic(
   return {
     id: mechanic.id,
     tenantId: mechanic.tenantId,
-    firstName: mechanic.firstName,
-    lastName: mechanic.lastName,
+    name: mechanic.name,
     email: mechanic.email,
     phone: mechanic.phone,
-    specialties: mechanic.specialties,
   };
 }
 

@@ -13,6 +13,7 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { MechanicsModule } from './modules/mechanics/mechanics.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     AuthModule,
     ClientsModule,
     VehiclesModule,
+    MechanicsModule,
   ],
   controllers: [AppController],
   providers: [
