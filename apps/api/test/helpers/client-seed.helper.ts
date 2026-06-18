@@ -4,20 +4,17 @@ import { randomUUID } from 'node:crypto';
 export interface SeedClientResult {
   id: string;
   tenantId: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string | null;
   phone: string | null;
 }
 
 export interface SeedClientOpts {
   tenantId: string;
-  firstName?: string;
-  lastName?: string;
+  name?: string;
   email?: string;
   phone?: string;
   address?: string;
-  notes?: string;
   status?: string;
 }
 
@@ -28,12 +25,10 @@ export async function seedClient(
   const client = await prisma.client.create({
     data: {
       tenantId: opts.tenantId,
-      firstName: opts.firstName ?? 'Test',
-      lastName: opts.lastName ?? `Client-${randomUUID().slice(0, 6)}`,
+      name: opts.name ?? `Client-${randomUUID().slice(0, 6)}`,
       email: opts.email ?? null,
       phone: opts.phone ?? null,
       address: opts.address ?? null,
-      notes: opts.notes ?? null,
       status: opts.status ?? 'active',
     },
   });
@@ -41,8 +36,7 @@ export async function seedClient(
   return {
     id: client.id,
     tenantId: client.tenantId,
-    firstName: client.firstName,
-    lastName: client.lastName,
+    name: client.name,
     email: client.email,
     phone: client.phone,
   };
