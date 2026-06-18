@@ -14,6 +14,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { MechanicsModule } from './modules/mechanics/mechanics.module';
+import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MechanicsModule } from './modules/mechanics/mechanics.module';
     ClientsModule,
     VehiclesModule,
     MechanicsModule,
+    SparePartsModule,
   ],
   controllers: [AppController],
   providers: [
