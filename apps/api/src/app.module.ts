@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TenantContextModule } from './common/tenant/tenant-context.module';
@@ -20,6 +21,7 @@ import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 5 }]),
+    EventEmitterModule.forRoot(),
     TenantContextModule,
     PrismaModule,
     AuditLogsModule,

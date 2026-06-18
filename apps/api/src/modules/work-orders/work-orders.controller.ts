@@ -11,11 +11,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { WorkOrdersService } from './work-orders.service';
+import { PartsService } from './parts.service';
+import { CostService } from './cost.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { QueryWorkOrderDto } from './dto/query-work-order.dto';
 import { AssignMechanicsDto } from './dto/assign-mechanics.dto';
 import { TransitionMilestoneDto } from './dto/transition-milestone.dto';
+import { AddPartDto } from './dto/add-part.dto';
 import { TenantContextInterceptor } from '../../common/tenant/tenant-context.interceptor';
 import { TenantContext } from '../../common/tenant/tenant-context.service';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -32,6 +35,8 @@ interface AuthenticatedUser {
 export class WorkOrdersController {
   constructor(
     private readonly workOrdersService: WorkOrdersService,
+    private readonly partsService: PartsService,
+    private readonly costService: CostService,
     private readonly tenantContext: TenantContext,
   ) {}
 
@@ -142,5 +147,97 @@ export class WorkOrdersController {
       id,
       dto,
     );
+  }
+
+  @Post(':id/parts')
+  @Roles('admin_taller', 'recepcionista', 'mecanico')
+  async addPart(
+    @Param('id') id: string,
+    @Body() dto: AddPartDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    // Mecánico solo puede agregar repuestos si está asignado
+    if (user.role === 'mecanico') {
+      const workOrder = await this.workOrdersService.findOne(
+        this.tenantContext.tenantId,
+        id,
+      );
+      const isAssigned = workOrder.mechanics.some(
+        (m) => m.mechanicId === user.id,
+      );
+      if (!isAssigned) {
+        throw new NotFoundException('Work order not found');
+      }
+    }
+
+    return this.partsService.addPart(
+      this.tenantContext.tenantId,
+      id,
+      dto.sparePartId,
+      dto.quantity,
+    );
+  }
+
+  @Delete(':id/parts/:partId')
+  @Roles('admin_taller', 'recepcionista', 'mecanico')
+  async removePart(
+    @Param('id') id: string,
+    @Param('partId') partId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    // Mecánico solo puede quitar repuestos si está asignado
+    if (user.role === 'mecanico') {
+      const workOrder = await this.workOrdersService.findOne(
+        this.tenantContext.tenantId,
+        id,
+      );
+      const isAssigned = workOrder.mechanics.some(
+        (m) => m.mechanicId === user.id,
+      );
+      if (!isAssigned) {
+        throw new NotFoundException('Work order not found');
+      }
+    }
+
+    return this.partsService.removePart(
+      this.tenantContext.tenantId,
+      id,
+      partId,
+    );
+  }
+
+  @Get(':id/parts')
+  @Roles('admin_taller', 'recepcionista', 'mecanico')
+  async listParts(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    // Mecánico solo puede ver repuestos si está asignado
+    if (user.role === 'mecanico') {
+      const workOrder = await this.workOrdersService.findOne(
+        this.tenantContext.tenantId,
+        id,
+      );
+      const isAssigned = workOrder.mechanics.some(
+        (m) => m.mechanicId === user.id,
+      );
+      if (!isAssigned) {
+        throw new NotFoundException('Work order not found');
+      }
+    }
+
+    return this.partsService.listParts(this.tenantContext.tenantId, id);
+  }
+
+  @Get(':id/costs')
+  @Roles('admin_taller', 'recepcionista')
+  getCosts(@Param('id') id: string) {
+    return this.costService.getCosts(this.tenantContext.tenantId, id);
+  }
+
+  @Post(':id/costs/calculate')
+  @Roles('admin_taller', 'recepcionista')
+  calculateCosts(@Param('id') id: string) {
+    return this.costService.calculate(this.tenantContext.tenantId, id);
   }
 }

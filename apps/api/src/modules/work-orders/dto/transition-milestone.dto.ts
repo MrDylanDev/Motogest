@@ -8,6 +8,7 @@ export class TransitionMilestoneDto {
     'in_progress',
     'completed',
     'invoiced',
+    'paid',
     'delivered',
     'cancelled',
   ])

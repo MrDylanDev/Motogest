@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SparePartsService } from './spare-parts.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
@@ -52,6 +53,12 @@ describe('SparePartsService', () => {
               async (fn: (tx: unknown) => Promise<unknown>) =>
                 fn(createMockTx()),
             ),
+          },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: {
+            emit: jest.fn(),
           },
         },
       ],

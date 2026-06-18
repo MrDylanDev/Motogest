@@ -4,6 +4,7 @@ export const WORK_ORDER_MILESTONES = {
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   INVOICED: 'invoiced',
+  PAID: 'paid',
   DELIVERED: 'delivered',
   CANCELLED: 'cancelled',
 } as const;
@@ -29,6 +30,10 @@ export const VALID_TRANSITIONS: Record<string, string[]> = {
     WORK_ORDER_MILESTONES.CANCELLED,
   ],
   [WORK_ORDER_MILESTONES.INVOICED]: [
+    WORK_ORDER_MILESTONES.PAID,
+    WORK_ORDER_MILESTONES.CANCELLED,
+  ],
+  [WORK_ORDER_MILESTONES.PAID]: [
     WORK_ORDER_MILESTONES.DELIVERED,
     WORK_ORDER_MILESTONES.CANCELLED,
   ],
@@ -42,7 +47,6 @@ export function isValidTransition(from: string, to: string): boolean {
 
 export function isFinalMilestone(milestone: string): boolean {
   return (
-    milestone === WORK_ORDER_MILESTONES.COMPLETED ||
     milestone === WORK_ORDER_MILESTONES.DELIVERED ||
     milestone === WORK_ORDER_MILESTONES.CANCELLED
   );

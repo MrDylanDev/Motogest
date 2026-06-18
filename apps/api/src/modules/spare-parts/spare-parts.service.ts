@@ -2,7 +2,9 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma, SparePart } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateSparePartDto } from './dto/create-spare-part.dto';
@@ -11,7 +13,10 @@ import { QuerySparePartDto } from './dto/query-spare-part.dto';
 
 @Injectable()
 export class SparePartsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async create(tenantId: string, dto: CreateSparePartDto): Promise<SparePart> {
     return this.prisma.withRlsTransaction(async (tx) => {
@@ -179,6 +184,59 @@ export class SparePartsService {
       return tx.sparePart.update({
         where: { id },
         data: { status: 'inactive' },
+      });
+    });
+  }
+
+  async reserveStock(
+    tenantId: string,
+    sparePartId: string,
+    quantity: number,
+  ): Promise<void> {
+    return this.prisma.withRlsTransaction(async (tx) => {
+      const sparePart = await tx.sparePart.findFirst({
+        where: { id: sparePartId, tenantId },
+      });
+      if (!sparePart) {
+        throw new NotFoundException('Spare part not found');
+      }
+      if (sparePart.currentStock < quantity) {
+        throw new BadRequestException('Insufficient stock');
+      }
+
+      await tx.sparePart.update({
+        where: { id: sparePartId },
+        data: { currentStock: { decrement: quantity } },
+      });
+
+      // Emitir evento si stock bajo
+      if (sparePart.currentStock - quantity < sparePart.minStock) {
+        this.eventEmitter.emit('inventory.stock.low', {
+          tenantId,
+          sparePartId,
+          sparePartName: sparePart.name,
+          currentStock: sparePart.currentStock - quantity,
+        });
+      }
+    });
+  }
+
+  async returnStock(
+    tenantId: string,
+    sparePartId: string,
+    quantity: number,
+  ): Promise<void> {
+    return this.prisma.withRlsTransaction(async (tx) => {
+      const sparePart = await tx.sparePart.findFirst({
+        where: { id: sparePartId, tenantId },
+      });
+      if (!sparePart) {
+        throw new NotFoundException('Spare part not found');
+      }
+
+      await tx.sparePart.update({
+        where: { id: sparePartId },
+        data: { currentStock: { increment: quantity } },
       });
     });
   }

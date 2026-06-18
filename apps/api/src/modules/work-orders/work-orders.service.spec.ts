@@ -231,15 +231,14 @@ describe('WorkOrdersService', () => {
       expect(mockTx.workOrderMechanic.createMany).toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException if work order is completed', async () => {
+    it('should throw BadRequestException if work order is delivered', async () => {
       const mockWorkOrder = {
         id: mockWorkOrderId,
-        milestone: WORK_ORDER_MILESTONES.COMPLETED,
+        milestone: WORK_ORDER_MILESTONES.DELIVERED,
         mechanics: [],
       };
 
       mockTx.workOrder.findFirst.mockResolvedValue(mockWorkOrder);
-      mockTx.mechanic.findMany.mockResolvedValue([]);
 
       await expect(
         service.assignMechanics(mockTenantId, mockWorkOrderId, assignDto),

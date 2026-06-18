@@ -1,5 +1,11 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  MaxLength,
+  IsNumber,
+  Min,
+} from 'class-validator';
 import { CreateMechanicDto } from './create-mechanic.dto';
 
 export class UpdateMechanicDto extends PartialType(CreateMechanicDto) {
@@ -7,4 +13,9 @@ export class UpdateMechanicDto extends PartialType(CreateMechanicDto) {
   @IsOptional()
   @MaxLength(20)
   status?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  hourlyRate?: number;
 }

@@ -174,6 +174,7 @@ export class MechanicsService {
           phone: dto.phone,
           specializations: dto.specializations,
           hireDate: dto.hireDate ? new Date(dto.hireDate) : dto.hireDate,
+          hourlyRate: dto.hourlyRate,
           notes: dto.notes,
           status: dto.status,
         },

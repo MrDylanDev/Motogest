@@ -199,6 +199,7 @@ model Mechanic {
   phone           String?  @db.VarChar(20)
   specializations String[] @db.VarChar(100)
   hireDate        DateTime? @map("hire_date")
+  hourlyRate      Decimal? @map("hourly_rate") @db.Decimal(10, 2)
   notes           String?  @db.Text
   status          String   @default("active") @db.VarChar(20)
 
@@ -233,6 +234,8 @@ model SparePart {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  workOrders WorkOrderSparePart[]
+
   @@unique([tenantId, code])
   @@index([tenantId, name])
   @@index([tenantId, category])
@@ -255,9 +258,11 @@ model WorkOrder {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  vehicle   Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
-  client    Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  mechanics WorkOrderMechanic[]
+  vehicle      Vehicle               @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  client       Client                @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  mechanics    WorkOrderMechanic[]
+  spareParts   WorkOrderSparePart[]
+  cost         WorkOrderCost?
 
   @@index([tenantId, milestone])
   @@index([tenantId, vehicleId])
@@ -279,4 +284,45 @@ model WorkOrderMechanic {
   @@index([workOrderId])
   @@index([mechanicId])
   @@map("work_order_mechanics")
+}
+
+model WorkOrderSparePart {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  workOrderId String   @map("work_order_id") @db.Uuid
+  sparePartId String   @map("spare_part_id") @db.Uuid
+  quantity    Int
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  totalPrice  Decimal  @map("total_price") @db.Decimal(10, 2)
+  status      String   @default("reserved") @db.VarChar(20)
+  reservedAt  DateTime @default(now()) @map("reserved_at")
+  consumedAt  DateTime? @map("consumed_at")
+  returnedAt  DateTime? @map("returned_at")
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  sparePart SparePart @relation(fields: [sparePartId], references: [id], onDelete: Restrict)
+
+  @@index([workOrderId])
+  @@index([sparePartId])
+  @@map("work_order_spare_parts")
+}
+
+model WorkOrderCost {
+  id              String    @id @default(uuid()) @db.Uuid
+  workOrderId     String    @unique @map("work_order_id") @db.Uuid
+  laborCost       Decimal?  @map("labor_cost") @db.Decimal(10, 2)
+  partsCost       Decimal?  @map("parts_cost") @db.Decimal(10, 2)
+  subtotal        Decimal?  @db.Decimal(10, 2)
+  taxRate         Decimal?  @default(0.21) @map("tax_rate") @db.Decimal(5, 4)
+  taxAmount       Decimal?  @map("tax_amount") @db.Decimal(10, 2)
+  discountPercent Decimal?  @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal?  @map("discount_amount") @db.Decimal(10, 2)
+  total           Decimal?  @db.Decimal(10, 2)
+  calculatedAt    DateTime? @map("calculated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_costs")
 }
