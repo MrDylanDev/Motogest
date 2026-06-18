@@ -207,6 +207,7 @@ model Mechanic {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   workOrders WorkOrderMechanic[]
+  checklistExecutions ChecklistExecution[]
 
   @@unique([tenantId, email])
   @@unique([tenantId, phone])
@@ -263,6 +264,7 @@ model WorkOrder {
   mechanics    WorkOrderMechanic[]
   spareParts   WorkOrderSparePart[]
   cost         WorkOrderCost?
+  checklists   ChecklistExecution[]
 
   @@index([tenantId, milestone])
   @@index([tenantId, vehicleId])
@@ -325,4 +327,93 @@ model WorkOrderCost {
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
   @@map("work_order_costs")
+}
+
+model ChecklistTemplate {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  sections   ChecklistSection[]
+  executions ChecklistExecution[]
+
+  @@index([tenantId, isActive])
+  @@map("checklist_templates")
+}
+
+model ChecklistSection {
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  templateId String  @map("template_id") @db.Uuid
+  name       String  @db.VarChar(255)
+  order      Int
+  isRequired Boolean @default(true) @map("is_required")
+
+  template  ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  questions ChecklistQuestion[]
+
+  @@index([templateId, order])
+  @@map("checklist_sections")
+}
+
+model ChecklistQuestion {
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  sectionId  String  @map("section_id") @db.Uuid
+  text       String  @db.Text
+  type       String  @db.VarChar(30)
+  options    Json?
+  isRequired Boolean @default(true) @map("is_required")
+  order      Int
+  weight     Int     @default(1)
+
+  section ChecklistSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  answers ChecklistAnswer[]
+
+  @@index([sectionId, order])
+  @@map("checklist_questions")
+}
+
+model ChecklistExecution {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  templateId  String    @map("template_id") @db.Uuid
+  workOrderId String    @map("work_order_id") @db.Uuid
+  mechanicId  String    @map("mechanic_id") @db.Uuid
+  status      String    @default("pending") @db.VarChar(20)
+  score       Decimal?  @db.Decimal(5, 2)
+  passed      Boolean?
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  template  ChecklistTemplate @relation(fields: [templateId], references: [id])
+  workOrder WorkOrder         @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  mechanic  Mechanic          @relation(fields: [mechanicId], references: [id])
+  answers   ChecklistAnswer[]
+
+  @@index([workOrderId, status])
+  @@index([tenantId, templateId])
+  @@map("checklist_executions")
+}
+
+model ChecklistAnswer {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  executionId String  @map("execution_id") @db.Uuid
+  questionId String   @map("question_id") @db.Uuid
+  answer     String   @db.Text
+  score      Int?
+  answeredAt DateTime @default(now()) @map("answered_at")
+
+  execution ChecklistExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  question  ChecklistQuestion  @relation(fields: [questionId], references: [id])
+
+  @@unique([executionId, questionId])
+  @@map("checklist_answers")
 }

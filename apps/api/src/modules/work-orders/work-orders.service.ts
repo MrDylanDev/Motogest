@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -15,10 +17,15 @@ import {
   isValidTransition,
   isFinalMilestone,
 } from './constants/work-order-milestones';
+import { ExecutionsService } from '../checklists/executions.service';
 
 @Injectable()
 export class WorkOrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => ExecutionsService))
+    private executionsService: ExecutionsService,
+  ) {}
 
   async create(tenantId: string, dto: CreateWorkOrderDto) {
     return this.prisma.withRlsTransaction(async (tx) => {
@@ -436,6 +443,14 @@ export class WorkOrdersService {
       if (!isValidTransition(workOrder.milestone, dto.milestone)) {
         throw new BadRequestException(
           `Invalid transition from ${workOrder.milestone} to ${dto.milestone}`,
+        );
+      }
+
+      // Validate checklists if transitioning to completed
+      if (dto.milestone === WORK_ORDER_MILESTONES.COMPLETED) {
+        await this.executionsService.validateChecklistsForCompletion(
+          tenantId,
+          workOrderId,
         );
       }
 

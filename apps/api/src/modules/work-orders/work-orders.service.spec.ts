@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { WorkOrdersService } from './work-orders.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { ExecutionsService } from '../checklists/executions.service';
 import { WORK_ORDER_MILESTONES } from './constants/work-order-milestones';
 
 describe('WorkOrdersService', () => {
@@ -39,6 +40,10 @@ describe('WorkOrdersService', () => {
     },
   };
 
+  const mockExecutionsService = {
+    validateChecklistsForCompletion: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.resetAllMocks();
 
@@ -50,6 +55,10 @@ describe('WorkOrdersService', () => {
           useValue: {
             withRlsTransaction: jest.fn((callback) => callback(mockTx)),
           },
+        },
+        {
+          provide: ExecutionsService,
+          useValue: mockExecutionsService,
         },
       ],
     }).compile();

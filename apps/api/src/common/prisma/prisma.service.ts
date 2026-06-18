@@ -19,6 +19,11 @@ export const TENANT_SCOPED_MODELS = [
   'WorkOrderMechanic',
   'WorkOrderSparePart',
   'WorkOrderCost',
+  'ChecklistTemplate',
+  'ChecklistSection',
+  'ChecklistQuestion',
+  'ChecklistExecution',
+  'ChecklistAnswer',
 ] as const;
 export type TenantScopedModel = (typeof TENANT_SCOPED_MODELS)[number];
 

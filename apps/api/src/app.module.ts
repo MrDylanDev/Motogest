@@ -17,6 +17,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { MechanicsModule } from './modules/mechanics/mechanics.module';
 import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
 import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
+import { ChecklistsModule } from './modules/checklists/checklists.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
     MechanicsModule,
     SparePartsModule,
     WorkOrdersModule,
+    ChecklistsModule,
   ],
   controllers: [AppController],
   providers: [
