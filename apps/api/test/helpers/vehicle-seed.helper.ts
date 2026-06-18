@@ -5,7 +5,7 @@ export interface SeedVehicleResult {
   id: string;
   tenantId: string;
   clientId: string;
-  brand: string;
+  make: string;
   model: string;
   plate: string;
 }
@@ -13,7 +13,7 @@ export interface SeedVehicleResult {
 export interface SeedVehicleOpts {
   tenantId: string;
   clientId: string;
-  brand?: string;
+  make?: string;
   model?: string;
   year?: number;
   plate?: string;
@@ -33,7 +33,7 @@ export async function seedVehicle(
     data: {
       tenantId: opts.tenantId,
       clientId: opts.clientId,
-      brand: opts.brand ?? 'Toyota',
+      make: opts.make ?? 'Toyota',
       model: opts.model ?? `Corolla-${randomUUID().slice(0, 6)}`,
       year: opts.year ?? 2020,
       plate: opts.plate ?? `TEST-${randomUUID().slice(0, 6).toUpperCase()}`,
@@ -50,7 +50,7 @@ export async function seedVehicle(
     id: vehicle.id,
     tenantId: vehicle.tenantId,
     clientId: vehicle.clientId,
-    brand: vehicle.brand,
+    make: vehicle.make,
     model: vehicle.model,
     plate: vehicle.plate,
   };

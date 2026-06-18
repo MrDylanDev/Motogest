@@ -12,6 +12,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ClientsModule } from './modules/clients/clients.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ClientsModule } from './modules/clients/clients.module';
     AuditLogsModule,
     AuthModule,
     ClientsModule,
+    VehiclesModule,
   ],
   controllers: [AppController],
   providers: [
