@@ -299,4 +299,162 @@ describe('InvoicesController (e2e)', () => {
         .expect(404);
     });
   });
+
+  describe('POST /invoices/:id/pay', () => {
+    it('should register a partial payment', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+      const workOrder = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'invoiced',
+      });
+      const invoice = await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: workOrder.id,
+        clientId: client.id,
+        totalAmount: 1000,
+      });
+
+      const paymentDto = {
+        amount: 500,
+        method: 'cash',
+        reference: 'Test payment',
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/invoices/${invoice.id}/pay`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(paymentDto)
+        .expect(201);
+
+      expect(response.body.payment).toBeDefined();
+      expect(response.body.payment.amount).toBe('500');
+      expect(response.body.invoice.status).toBe('partial');
+      expect(response.body.invoice.paidAmount).toBe('500');
+    });
+
+    it('should register a full payment and update work order', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+      const workOrder = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'invoiced',
+      });
+      const invoice = await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: workOrder.id,
+        clientId: client.id,
+        totalAmount: 1000,
+      });
+
+      const paymentDto = {
+        amount: 1000,
+        method: 'transfer',
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/invoices/${invoice.id}/pay`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(paymentDto)
+        .expect(201);
+
+      expect(response.body.invoice.status).toBe('paid');
+      expect(response.body.invoice.paidAmount).toBe('1000');
+
+      // Verify work order status changed to 'paid'
+      const updatedWorkOrder = await seedPrisma.workOrder.findUnique({
+        where: { id: workOrder.id },
+      });
+      expect(updatedWorkOrder.milestone).toBe('paid');
+    });
+
+    it('should register an overpayment', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+      const workOrder = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'invoiced',
+      });
+      const invoice = await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: workOrder.id,
+        clientId: client.id,
+        totalAmount: 1000,
+      });
+
+      const paymentDto = {
+        amount: 1200,
+        method: 'card',
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/invoices/${invoice.id}/pay`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(paymentDto)
+        .expect(201);
+
+      expect(response.body.invoice.status).toBe('overpaid');
+      expect(response.body.invoice.paidAmount).toBe('1200');
+    });
+
+    it('should return 404 if invoice not found', async () => {
+      const { accessToken } = await seedActiveUserWithTenant(seedPrisma);
+      const fakeId = '00000000-0000-0000-0000-000000000000';
+
+      await request(app.getHttpServer())
+        .post(`/invoices/${fakeId}/pay`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ amount: 500, method: 'cash' })
+        .expect(404);
+    });
+
+    it('should return 400 if invoice is cancelled', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+      const workOrder = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'invoiced',
+      });
+      const invoice = await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: workOrder.id,
+        clientId: client.id,
+        status: 'cancelled',
+      });
+
+      await request(app.getHttpServer())
+        .post(`/invoices/${invoice.id}/pay`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ amount: 500, method: 'cash' })
+        .expect(400);
+    });
+  });
 });
