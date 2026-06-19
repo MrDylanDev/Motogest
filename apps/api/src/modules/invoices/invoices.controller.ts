@@ -8,7 +8,9 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
+import { PaymentsService } from './payments.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 import { QueryInvoiceDto } from './dto/query-invoice.dto';
 import { TenantContextInterceptor } from '../../common/tenant/tenant-context.interceptor';
 import { TenantContext } from '../../common/tenant/tenant-context.service';
@@ -26,6 +28,7 @@ interface AuthenticatedUser {
 export class InvoicesController {
   constructor(
     private readonly invoicesService: InvoicesService,
+    private readonly paymentsService: PaymentsService,
     private readonly tenantContext: TenantContext,
   ) {}
 
@@ -60,5 +63,20 @@ export class InvoicesController {
   @Get('invoices/:id')
   findOne(@Param('id') id: string) {
     return this.invoicesService.findOne(this.tenantContext.tenantId, id);
+  }
+
+  @Roles('admin_taller', 'recepcionista')
+  @Post('invoices/:id/pay')
+  registerPayment(
+    @Param('id') id: string,
+    @Body() dto: CreatePaymentDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.paymentsService.registerPayment(
+      this.tenantContext.tenantId,
+      id,
+      dto,
+      user.id,
+    );
   }
 }
