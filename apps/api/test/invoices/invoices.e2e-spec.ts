@@ -457,4 +457,276 @@ describe('InvoicesController (e2e)', () => {
         .expect(400);
     });
   });
+
+  describe('POST /invoices/:id/cancel', () => {
+    it('should cancel a pending invoice', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+      const workOrder = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'invoiced',
+      });
+      const invoice = await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: workOrder.id,
+        clientId: client.id,
+        status: 'pending',
+      });
+
+      const response = await request(app.getHttpServer())
+        .post(`/invoices/${invoice.id}/cancel`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(201);
+
+      expect(response.body.status).toBe('cancelled');
+      expect(response.body.cancelledAt).toBeDefined();
+
+      // Verify work order status reverted to 'completed'
+      const updatedWorkOrder = await seedPrisma.workOrder.findUnique({
+        where: { id: workOrder.id },
+      });
+      expect(updatedWorkOrder.milestone).toBe('completed');
+    });
+
+    it('should cancel a partial invoice and delete payments', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+      const workOrder = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'invoiced',
+      });
+      const invoice = await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: workOrder.id,
+        clientId: client.id,
+        status: 'partial',
+        totalAmount: 1000,
+        paidAmount: 500,
+      });
+
+      // Create a payment
+      await seedPrisma.payment.create({
+        data: {
+          tenantId,
+          invoiceId: invoice.id,
+          amount: 500,
+          method: 'cash',
+          receivedBy: accessToken.split('.')[0], // Just a placeholder
+        },
+      });
+
+      const response = await request(app.getHttpServer())
+        .post(`/invoices/${invoice.id}/cancel`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(201);
+
+      expect(response.body.status).toBe('cancelled');
+      expect(response.body.paidAmount).toBe('0');
+
+      // Verify payments were deleted
+      const payments = await seedPrisma.payment.findMany({
+        where: { invoiceId: invoice.id },
+      });
+      expect(payments).toHaveLength(0);
+    });
+
+    it('should return 404 if invoice not found', async () => {
+      const { accessToken } = await seedActiveUserWithTenant(seedPrisma);
+      const fakeId = '00000000-0000-0000-0000-000000000000';
+
+      await request(app.getHttpServer())
+        .post(`/invoices/${fakeId}/cancel`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404);
+    });
+
+    it('should return 400 if invoice is paid', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+      const workOrder = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'paid',
+      });
+      const invoice = await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: workOrder.id,
+        clientId: client.id,
+        status: 'paid',
+      });
+
+      await request(app.getHttpServer())
+        .post(`/invoices/${invoice.id}/cancel`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400);
+    });
+
+    it('should return 400 if invoice is already cancelled', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+      const workOrder = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'completed',
+      });
+      const invoice = await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: workOrder.id,
+        clientId: client.id,
+        status: 'cancelled',
+      });
+
+      await request(app.getHttpServer())
+        .post(`/invoices/${invoice.id}/cancel`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400);
+    });
+  });
+
+  describe('GET /invoices/reports/summary', () => {
+    it('should return report summary', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+
+      // Create invoices with different statuses
+      const wo1 = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'invoiced',
+      });
+      await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: wo1.id,
+        clientId: client.id,
+        status: 'pending',
+        totalAmount: 1000,
+        paidAmount: 0,
+      });
+
+      const wo2 = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'invoiced',
+      });
+      await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: wo2.id,
+        clientId: client.id,
+        status: 'partial',
+        totalAmount: 2000,
+        paidAmount: 500,
+      });
+
+      const wo3 = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'paid',
+      });
+      await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: wo3.id,
+        clientId: client.id,
+        status: 'paid',
+        totalAmount: 1500,
+        paidAmount: 1500,
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/invoices/reports/summary')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.totalIssued).toBe(4500);
+      expect(response.body.totalPaid).toBe(2000);
+      expect(response.body.totalPending).toBe(2500);
+      expect(response.body.invoicesByStatus).toEqual({
+        pending: 1,
+        partial: 1,
+        paid: 1,
+        overpaid: 0,
+      });
+    });
+
+    it('should exclude cancelled invoices from report', async () => {
+      const { accessToken, tenantId } =
+        await seedActiveUserWithTenant(seedPrisma);
+      const client = await seedClient(seedPrisma, { tenantId });
+      const vehicle = await seedVehicle(seedPrisma, {
+        tenantId,
+        clientId: client.id,
+      });
+
+      const wo1 = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'paid',
+      });
+      await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: wo1.id,
+        clientId: client.id,
+        status: 'paid',
+        totalAmount: 1000,
+        paidAmount: 1000,
+      });
+
+      const wo2 = await seedWorkOrder(seedPrisma, {
+        tenantId,
+        vehicleId: vehicle.id,
+        clientId: client.id,
+        milestone: 'completed',
+      });
+      await seedInvoice(seedPrisma, {
+        tenantId,
+        workOrderId: wo2.id,
+        clientId: client.id,
+        status: 'cancelled',
+        totalAmount: 5000,
+        paidAmount: 0,
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/invoices/reports/summary')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      // Cancelled invoice should not be counted
+      expect(response.body.totalIssued).toBe(1000);
+    });
+  });
 });

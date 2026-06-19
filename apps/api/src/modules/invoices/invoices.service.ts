@@ -166,4 +166,104 @@ export class InvoicesService {
       return invoice;
     });
   }
+
+  async cancelInvoice(tenantId: string, id: string, userId: string) {
+    return this.prisma.withRlsTransaction(async (tx) => {
+      // 1. Fetch invoice
+      const invoice = await tx.invoice.findFirst({
+        where: { id, tenantId },
+        include: { workOrder: true },
+      });
+
+      if (!invoice) {
+        throw new NotFoundException('Invoice not found');
+      }
+
+      // 2. Validate invoice is cancellable
+      if (!['pending', 'partial'].includes(invoice.status)) {
+        throw new BadRequestException(
+          'Only pending or partial invoices can be cancelled',
+        );
+      }
+
+      // 3. Delete all payments
+      await tx.payment.deleteMany({
+        where: { invoiceId: id, tenantId },
+      });
+
+      // 4. Update invoice status
+      const cancelledInvoice = await tx.invoice.update({
+        where: { id },
+        data: {
+          status: 'cancelled',
+          paidAmount: new Decimal(0),
+          cancelledAt: new Date(),
+          cancelledBy: userId,
+        },
+      });
+
+      // 5. Revert WorkOrder status from 'invoiced' to 'completed'
+      await tx.workOrder.update({
+        where: { id: invoice.workOrderId },
+        data: { milestone: 'completed' },
+      });
+
+      return cancelledInvoice;
+    });
+  }
+
+  async getReportSummary(tenantId: string, dateFrom?: Date, dateTo?: Date) {
+    return this.prisma.withRlsTransaction(async (tx) => {
+      const where: Prisma.InvoiceWhereInput = {
+        tenantId,
+        status: { not: 'cancelled' },
+      };
+
+      if (dateFrom || dateTo) {
+        where.issueDate = {};
+        if (dateFrom) where.issueDate.gte = dateFrom;
+        if (dateTo) where.issueDate.lte = dateTo;
+      }
+
+      // Get all invoices matching criteria
+      const invoices = await tx.invoice.findMany({
+        where,
+        select: {
+          status: true,
+          totalAmount: true,
+          paidAmount: true,
+        },
+      });
+
+      // Calculate totals
+      let totalIssued = new Decimal(0);
+      let totalPaid = new Decimal(0);
+      const invoicesByStatus = {
+        pending: 0,
+        partial: 0,
+        paid: 0,
+        overpaid: 0,
+      };
+
+      for (const invoice of invoices) {
+        totalIssued = totalIssued.add(invoice.totalAmount);
+        totalPaid = totalPaid.add(invoice.paidAmount);
+        if (
+          invoice.status !== 'cancelled' &&
+          invoice.status in invoicesByStatus
+        ) {
+          invoicesByStatus[invoice.status as keyof typeof invoicesByStatus]++;
+        }
+      }
+
+      const totalPending = totalIssued.minus(totalPaid);
+
+      return {
+        totalIssued: totalIssued.toNumber(),
+        totalPaid: totalPaid.toNumber(),
+        totalPending: totalPending.toNumber(),
+        invoicesByStatus,
+      };
+    });
+  }
 }

@@ -12,6 +12,7 @@ import { PaymentsService } from './payments.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { QueryInvoiceDto } from './dto/query-invoice.dto';
+import { ReportSummaryDto } from './dto/report-summary.dto';
 import { TenantContextInterceptor } from '../../common/tenant/tenant-context.interceptor';
 import { TenantContext } from '../../common/tenant/tenant-context.service';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -59,6 +60,16 @@ export class InvoicesController {
     );
   }
 
+  @Roles('admin_taller', 'recepcionista')
+  @Get('invoices/reports/summary')
+  getReportSummary(@Query() query: ReportSummaryDto) {
+    return this.invoicesService.getReportSummary(
+      this.tenantContext.tenantId,
+      query.dateFrom ? new Date(query.dateFrom) : undefined,
+      query.dateTo ? new Date(query.dateTo) : undefined,
+    );
+  }
+
   @Roles('admin_taller', 'recepcionista', 'mecanico')
   @Get('invoices/:id')
   findOne(@Param('id') id: string) {
@@ -76,6 +87,19 @@ export class InvoicesController {
       this.tenantContext.tenantId,
       id,
       dto,
+      user.id,
+    );
+  }
+
+  @Roles('admin_taller', 'recepcionista')
+  @Post('invoices/:id/cancel')
+  cancelInvoice(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.invoicesService.cancelInvoice(
+      this.tenantContext.tenantId,
+      id,
       user.id,
     );
   }
