@@ -19,6 +19,7 @@ import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
 import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
 import { ChecklistsModule } from './modules/checklists/checklists.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
     WorkOrdersModule,
     ChecklistsModule,
     InvoicesModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
